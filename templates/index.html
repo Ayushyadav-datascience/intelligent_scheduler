@@ -8,6 +8,7 @@
         <input name="duration" type="number" placeholder="Duration (minutes)" required>
         <input name="energy" type="number" placeholder="Energy Level (1-5)" required>
         <input name="deadline" type="date" required>
+        <input name="start_time" type="time" required>
         <button type="submit">Add Task</button>
     </form>
 </div>
@@ -22,7 +23,7 @@
                 Priority: {{ task.priority }} |
                 Duration: {{ task.duration }} mins |
                 Energy: {{ task.energy }} |
-                Deadline: {{ task.deadline }}
+                Deadline: {{ task.deadline }} at {{ task.start_time }}
             </div>
             <form method="POST" action="{{ url_for('remove_task', task_index=loop.index0) }}">
                 <button type="submit">Remove</button>

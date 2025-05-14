@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-    <h2>✅ Authenticated!</h2>
+    <h2>✅ Tasks Synced to Calendar</h2>
     <p>Welcome, {{ email }}.</p>
-    <p>Your calendar has been synced. Check the console for event logs.</p>
+    <ul>
+    {% for event in events %}
+        <li><a href="{{ event.link }}" target="_blank">{{ event.name }}</a></li>
+    {% endfor %}
+    </ul>
 </div>
 {% endblock %}
+

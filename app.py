@@ -1,6 +1,3 @@
-### FILE: app.py
-
-from ml import optimize_tasks
 from flask import Flask, render_template, request, redirect, url_for, session
 import os
 import json
@@ -42,6 +39,7 @@ def add_task():
         "duration": request.form["duration"],
         "energy": request.form["energy"],
         "deadline": request.form["deadline"],
+        "start_time": request.form["start_time"],
     }
     tasks.append(task)
     save_tasks(tasks)
@@ -59,10 +57,10 @@ def remove_task(task_index):
 def authorize():
     flow = Flow.from_client_secrets_file(
         "credentials.json",
-        scopes=["https://www.googleapis.com/auth/calendar.readonly", "openid", "https://www.googleapis.com/auth/userinfo.email"],
+        scopes=["https://www.googleapis.com/auth/calendar", "openid", "https://www.googleapis.com/auth/userinfo.email"],
         redirect_uri="http://localhost:8080/oauth2callback"
     )
-    authorization_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true')
+    authorization_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true', prompt='consent')
     session["state"] = state
     return redirect(authorization_url)
 
@@ -74,7 +72,7 @@ def oauth2callback():
     state = session["state"]
     flow = Flow.from_client_secrets_file(
         "credentials.json",
-        scopes=["https://www.googleapis.com/auth/calendar.readonly", "openid", "https://www.googleapis.com/auth/userinfo.email"],
+        scopes=["https://www.googleapis.com/auth/calendar", "openid", "https://www.googleapis.com/auth/userinfo.email"],
         state=state,
         redirect_uri="http://localhost:8080/oauth2callback"
     )
@@ -103,28 +101,44 @@ def schedule():
     user_email = user_info.get("email", "Unknown")
     print(f"[INFO] Authenticated user email: {user_email}")
 
-    # Simulate sending token to user's email (print to console)
-    print(f"[MOCK EMAIL] Sending token to {user_email}: {creds.token}")
-
-    # Print Google Calendar events to console
+    # Build calendar service
     calendar_service = build("calendar", "v3", credentials=creds)
-    now = datetime.datetime.utcnow().isoformat() + "Z"
-    events_result = calendar_service.events().list(
-        calendarId="primary", timeMin=now,
-        maxResults=5, singleEvents=True,
-        orderBy="startTime"
-    ).execute()
+    tasks = load_tasks()
 
-    events = events_result.get("items", [])
-    if not events:
-        print("[INFO] No upcoming events found.")
-    else:
-        print("[INFO] Upcoming Google Calendar events:")
-        for event in events:
-            start = event["start"].get("dateTime", event["start"].get("date"))
-            print(f"{start} - {event.get('summary', 'No Title')}")
+    added_events = []
 
-    return render_template("authenticated.html", email=user_email)
+    for task in tasks:
+        try:
+            task_name = task["name"]
+            duration_minutes = int(task["duration"])
+            deadline_date = task["deadline"]
+            start_time_str = task.get("start_time", "10:00")
+
+            # Combine date and time to full datetime
+            start_dt = datetime.datetime.strptime(f"{deadline_date} {start_time_str}", "%Y-%m-%d %H:%M")
+            end_dt = start_dt + datetime.timedelta(minutes=duration_minutes)
+
+            event = {
+                'summary': task_name,
+                'description': f"Priority: {task['priority']}, Energy: {task['energy']}",
+                'start': {
+                    'dateTime': start_dt.isoformat(),
+                    'timeZone': 'Asia/Kolkata',
+                },
+                'end': {
+                    'dateTime': end_dt.isoformat(),
+                    'timeZone': 'Asia/Kolkata',
+                }
+            }
+
+            created_event = calendar_service.events().insert(calendarId='primary', body=event).execute()
+            event_link = created_event.get('htmlLink')
+            print(f"[CALENDAR] Added task to calendar: {event_link}")
+            added_events.append({"name": task_name, "link": event_link})
+        except Exception as e:
+            print(f"[ERROR] Failed to add task '{task_name}': {e}")
+
+    return render_template("authenticated.html", email=user_email, events=added_events)
 
 if __name__ == "__main__":
     app.run(debug=True, port=8080)
