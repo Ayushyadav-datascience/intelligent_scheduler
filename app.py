@@ -47,6 +47,14 @@ def add_task():
     save_tasks(tasks)
     return redirect(url_for("index"))
 
+@app.route("/remove-task/<int:task_index>", methods=["POST"])
+def remove_task(task_index):
+    tasks = load_tasks()
+    if 0 <= task_index < len(tasks):
+        tasks.pop(task_index)
+        save_tasks(tasks)
+    return redirect(url_for("index"))
+
 @app.route("/authorize")
 def authorize():
     flow = Flow.from_client_secrets_file(
@@ -61,7 +69,7 @@ def authorize():
 @app.route("/oauth2callback")
 def oauth2callback():
     if "state" not in session:
-        return redirect(url_for("authorize"))  # fallback if user skips authorize
+        return redirect(url_for("authorize"))
 
     state = session["state"]
     flow = Flow.from_client_secrets_file(
@@ -81,7 +89,6 @@ def oauth2callback():
         "scopes": credentials.scopes
     }
     return redirect(url_for("schedule"))
-
 
 @app.route("/schedule")
 def schedule():

@@ -24,6 +24,9 @@
                 Energy: {{ task.energy }} |
                 Deadline: {{ task.deadline }}
             </div>
+            <form method="POST" action="{{ url_for('remove_task', task_index=loop.index0) }}">
+                <button type="submit">Remove</button>
+            </form>
         </li>
         {% else %}
         <li>No tasks yet.</li>
