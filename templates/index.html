@@ -35,3 +35,43 @@
     </ul>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+if ("serviceWorker" in navigator && "PushManager" in window) {
+  navigator.serviceWorker.register("/service-worker.js")
+    .then(swReg => {
+      console.log("Service Worker Registered", swReg);
+
+      return swReg.pushManager.getSubscription()
+        .then(subscription => {
+          if (!subscription) {
+            const vapidKey = '{{ vapid_pub_key }}';
+            const convertedVapidKey = urlBase64ToUint8Array(vapidKey);
+            return swReg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: convertedVapidKey
+            });
+          }
+          return subscription;
+        });
+    })
+    .then(subscription => {
+      fetch("/subscribe", {
+        method: "POST",
+        body: JSON.stringify(subscription),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+    });
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+}
+</script>
+{% endblock %}
