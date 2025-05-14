@@ -1,5 +1,6 @@
 ### FILE: app.py
 
+from ml import optimize_tasks
 from flask import Flask, render_template, request, redirect, url_for, session
 import os
 import json
